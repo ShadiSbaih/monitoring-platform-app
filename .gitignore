@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.*
+.yarn/*
+
+# Environment files and credentials
+.env
+.env.*
+!.env.example
+.env.local
+.neon
+
+# Build and production outputs
+dist/
+**/dist/
+.next/
+**/.next/
+out/
+build/
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Test & coverage artifacts
+coverage/
+artifacts/
+
+# System and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Documentation
+/docs/
