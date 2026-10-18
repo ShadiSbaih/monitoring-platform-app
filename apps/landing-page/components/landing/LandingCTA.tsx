@@ -14,14 +14,13 @@ export function LandingCTA() {
         </p>
         <div className="mt-8 flex justify-center gap-4">
           <Link
-            href="/dashboard"
+            href="/sign-up"
             className="inline-flex items-center justify-center rounded-md bg-sky-500/90 px-6 py-3 text-sm font-semibold tracking-tight text-slate-950 shadow-sm hover:bg-sky-400 transition-colors"
           >
             Get Started
           </Link>
           <Link
-            href="/docs"
-            target="_blank"
+            href="/#integrations"
             className="inline-flex items-center justify-center rounded-md border border-slate-700 bg-slate-950/80 px-6 py-3 text-sm font-medium tracking-tight text-slate-100 hover:border-slate-500 hover:bg-slate-900 transition-colors"
           >
             View Docs

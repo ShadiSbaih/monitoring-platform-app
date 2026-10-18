@@ -1,5 +1,5 @@
 {
-  "name": "oneminutelogs-services",
+  "name": "tracebloom-services",
   "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
@@ -11,28 +11,27 @@
     "start:prod": "node dist/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "test:cloud": "node test/cloud-smoke.cjs",
+    "test": "npm run build && node --test test/core.test.cjs"
   },
   "dependencies": {
-    "@clickhouse/client": "^1.16.0",
-    "@clerk/backend": "^2.32.0",
+    "@neondatabase/serverless": "^1.0.2",
     "@nestjs/common": "^11.1.16",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.16",
+    "@nestjs/jwt": "^12.0.3",
     "@nestjs/platform-express": "^11.1.16",
-    "@nestjs/schedule": "^6.0.0",
-    "@neondatabase/serverless": "^1.0.2",
     "argon2": "^0.44.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "dotenv": "^16.6.1",
-    "drizzle-orm": "^0.44.5",
+    "drizzle-orm": "0.45.4",
     "ioredis": "^5.7.0",
     "lru-cache": "^11.2.2",
-    "nats": "^2.29.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "stripe": "^18.5.0",
+    "undici": "^7.30.1",
     "ws": "^8.18.3"
   },
   "devDependencies": {
@@ -45,5 +44,8 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }

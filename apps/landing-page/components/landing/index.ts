@@ -1,10 +1,8 @@
 export { LandingHeader } from "./LandingHeader";
 export { LandingHero } from "./LandingHero";
-export { LandingTrustedBy } from "./LandingTrustedBy";
 export { LandingFeatures } from "./LandingFeatures";
 export { LandingSetup } from "./LandingSetup";
-export { LandingTestimonials } from "./LandingTestimonials";
 export { LandingWhySwitch } from "./LandingWhySwitch";
-export { LandingPricing } from "./LandingPricing";
+export { LandingFreeLimits } from "./LandingFreeLimits";
 export { LandingCTA } from "./LandingCTA";
 export { LandingFooter } from "./LandingFooter";

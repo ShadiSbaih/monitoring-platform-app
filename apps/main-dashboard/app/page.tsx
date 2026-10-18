@@ -62,7 +62,7 @@ function timestampDate(log: LogRow): Date | null {
   const value = log.timestamp ?? log.ingested_at;
   if (value === undefined || value === null) return null;
   if (typeof value === "number") {
-    const date = new Date(value > 2_000_000_000_000 ? value : value * 1_000);
+    const date = new Date(value > 1_000_000_000_000 ? value : value * 1_000);
     return Number.isNaN(date.getTime()) ? null : date;
   }
   const parsed = new Date(value.includes(" ") ? `${value.replace(" ", "T")}Z` : value);

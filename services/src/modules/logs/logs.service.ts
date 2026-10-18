@@ -1,28 +1,19 @@
-import {
-  BadRequestException,
-  Injectable,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { and, desc, eq, gte, ilike, lte, sql } from 'drizzle-orm';
 import { LRUCache } from 'lru-cache';
-import Redis from 'ioredis';
-import { clickhouseClient } from '../../clickhouse/client';
-import {
-  PLAN_DEFAULTS,
-  REDIS_CLIENT,
-  REDIS_KEYS,
-  REDIS_PLAN_TTL_SECONDS,
-  PlanTier,
-  normalizePlanTier,
-} from '../../configs';
-import { Inject } from '@nestjs/common';
-import { publishLogBatch } from '../../infra/nats/producer';
-import { addClient, type SseFilters } from '../../sse/sse-registry';
 import type { Response } from 'express';
+import { DRIZZLE_DB, FREE_LIMITS, REDIS_CLIENT, REDIS_KEYS } from '../../configs';
+import type { DrizzleDatabase } from '../../database/client';
+import { logEvents, usage } from '../../database/schema';
+import { RedisClient } from '../../infra/redis.module';
+import { publishLogBatch, utcDay } from '../../infra/streams/queue';
+import { getTelemetry, getBacklog } from '../../infra/streams/telemetry';
+import { addClient } from '../../sse/sse-registry';
 
 const QUERY_COOLDOWN_MS = 2_000;
 const RESULT_CACHE_TTL_MS = 1_000;
 const DEFAULT_QUERY_LIMIT = 100;
-const MAX_QUERY_LIMIT = 10_000;
+const MAX_QUERY_LIMIT = 5_000;
 
 const queryCooldown = new LRUCache<string, true>({ max: 10_000, ttl: QUERY_COOLDOWN_MS });
 const resultCache = new LRUCache<string, { value: LogsQueryResult; expiresAt: number }>({ max: 10_000 });
@@ -49,13 +40,13 @@ function normalized(value: unknown): string {
 
 function parseUnixTimestamp(value: unknown, fallback: number): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
-    return Math.floor(value > 2_000_000_000_000 ? value / 1_000 : value);
+    return Math.floor(value > 1_000_000_000_000 ? value / 1_000 : value);
   }
   if (typeof value !== 'string' || !value.trim()) return fallback;
 
   const numeric = Number(value);
   if (Number.isFinite(numeric)) {
-    return Math.floor(numeric > 2_000_000_000_000 ? numeric / 1_000 : numeric);
+    return Math.floor(numeric > 1_000_000_000_000 ? numeric / 1_000 : numeric);
   }
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? Math.floor(parsed / 1_000) : fallback;
@@ -97,172 +88,75 @@ function parseDsl(dsl: string, output: Record<string, unknown>): void {
 
 @Injectable()
 export class LogsService {
-  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
-
-  async sendLogs(keyId: string, userId: string, logs: Record<string, unknown>[], serverReceivedAt: number) {
-    try {
-      await publishLogBatch(keyId, userId, logs, serverReceivedAt);
-      return { accepted: logs.length, queued: true };
-    } catch (error) {
-      console.error('Unable to publish log batch to NATS', error);
-      throw new ServiceUnavailableException('Log ingestion is temporarily unavailable');
-    }
+  constructor(@Inject(DRIZZLE_DB) private readonly db: DrizzleDatabase,
+    @Inject(REDIS_CLIENT) private readonly redis: RedisClient) {}
+  sendLogs(keyId: string, userId: string, logs: Record<string, unknown>[], batchId?: string) {
+    return publishLogBatch(keyId, userId, logs, batchId);
   }
-
-  async getLogs(userId: string, queryObj: Record<string, unknown> = {}): Promise<LogsQueryResult> {
-    const parsed = this.parseFilters(queryObj);
-    const cacheKey = `${userId}:${JSON.stringify(parsed)}`;
-    const now = Date.now();
-    const cached = resultCache.get(cacheKey);
-
-    if (queryCooldown.has(cacheKey) && cached && now <= cached.expiresAt + QUERY_COOLDOWN_MS) {
-      return cached.value;
-    }
-    if (cached && cached.expiresAt > now) return cached.value;
-
-    queryCooldown.set(cacheKey, true);
-    const filters = ['user_id = {userId:String}', 'timestamp >= toDateTime({timestampFrom:UInt32})', 'timestamp <= toDateTime({timestampTo:UInt32})'];
-    const queryParams: Record<string, string | number> = {
-      userId,
-      timestampFrom: parsed.timestampFrom,
-      timestampTo: parsed.timestampTo,
-      limit: parsed.limit,
-      timestamp24h: Math.floor(now / 1_000) - 86_400,
-    };
-
-    if (parsed.type) {
-      filters.push('type = {type:String}');
-      queryParams.type = parsed.type;
-    }
-    if (parsed.env) {
-      filters.push('environment = {environment:String}');
-      queryParams.environment = parsed.env;
-    }
-    if (parsed.appName) {
-      filters.push('app_name = {appName:String}');
-      queryParams.appName = parsed.appName;
-    }
-    if (parsed.search) {
-      filters.push('positionCaseInsensitive(message, {search:String}) > 0');
-      queryParams.search = parsed.search;
-    }
-
-    const where = filters.join('\n  AND ');
-    const countFilters = filters.filter((filter) => !filter.startsWith('timestamp >=') && !filter.startsWith('timestamp <='));
-    countFilters.push('timestamp >= toDateTime({timestamp24h:UInt32})');
-    const countQueryParams: Record<string, string | number> = {
-      userId,
-      timestamp24h: Math.floor(now / 1_000) - 86_400,
-    };
-    if (parsed.type) countQueryParams.type = parsed.type;
-    if (parsed.env) countQueryParams.environment = parsed.env;
-    if (parsed.appName) countQueryParams.appName = parsed.appName;
-    if (parsed.search) countQueryParams.search = parsed.search;
-
+  async getUsage(userId: string) {
+    const day = utcDay();
+    const accepted = Number(await this.redis.get(REDIS_KEYS.usage(userId, day)) ?? 0);
+    const [stored] = await this.db.select().from(usage).where(and(eq(usage.user_id, userId), eq(usage.day, day))).limit(1);
+    return { day, events_used: accepted, events_stored: stored?.events_used ?? 0, events_limit: FREE_LIMITS.eventsPerDay,
+      remaining: Math.max(0, FREE_LIMITS.eventsPerDay - accepted), retention_days: FREE_LIMITS.retentionDays,
+      max_alerts: FREE_LIMITS.maxAlerts, max_api_keys: FREE_LIMITS.maxApiKeys, max_batch_size: FREE_LIMITS.maxBatchSize,
+      platform_events_limit: FREE_LIMITS.platformEventsPerDay };
+  }
+  async getLogs(userId: string, query: Record<string, unknown>): Promise<LogsQueryResult> {
+    const parsed = this.parseFilters(query);
+    const key = JSON.stringify([userId, parsed]);
+    const cached = resultCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
+    const filters = [eq(logEvents.user_id, userId),
+      gte(logEvents.ingested_at, new Date(Date.now() - FREE_LIMITS.retentionDays * 86_400_000))];
+    if (parsed.type) filters.push(eq(logEvents.type, parsed.type));
+    if (parsed.env) filters.push(eq(logEvents.environment, parsed.env));
+    if (parsed.appName) filters.push(eq(logEvents.app_name, parsed.appName));
+    if (parsed.search) filters.push(ilike(logEvents.message, '%' + parsed.search.replace(/[\\%_]/g, '\\$&') + '%'));
     try {
-      const [rowsResult, countResult] = await Promise.all([
-        clickhouseClient.query({
-          query: `SELECT key_id, user_id, type, message, app_name, environment, importance, subsystem, service, operation, track, security, metrics, timestamp, ingested_at FROM logs.events WHERE ${where} ORDER BY timestamp DESC LIMIT {limit:UInt32}`,
-          query_params: queryParams,
-          format: 'JSONEachRow',
-        }),
-        clickhouseClient.query({
-          query: `SELECT count() AS totalCount, countIf(type = 'error') AS errorCount FROM logs.events WHERE ${countFilters.join('\n  AND ')}`,
-          query_params: countQueryParams,
-          format: 'JSONEachRow',
-        }),
+      const [rows, counts] = await Promise.all([
+        this.db.select().from(logEvents).where(and(...filters,
+          gte(logEvents.timestamp, new Date(parsed.timestampFrom * 1_000)),
+          lte(logEvents.timestamp, new Date(parsed.timestampTo * 1_000))))
+          .orderBy(desc(logEvents.timestamp), desc(logEvents.id)).limit(parsed.limit),
+        this.db.select({ totalCount: sql<number>`count(*)::int`,
+          errorCount: sql<number>`count(*) filter (where ${logEvents.type} = 'error')::int` })
+          .from(logEvents).where(and(...filters, gte(logEvents.timestamp, new Date(Date.now() - 86_400_000)))),
       ]);
-      const [logs, countRows] = await Promise.all([
-        rowsResult.json<Record<string, unknown>>(),
-        countResult.json<{ totalCount: string | number; errorCount: string | number }>(),
-      ]);
-      const result = {
-        logs: Array.isArray(logs) ? logs : [],
-        totalCount: Number(Array.isArray(countRows) ? countRows[0]?.totalCount ?? 0 : 0),
-        errorCount: Number(Array.isArray(countRows) ? countRows[0]?.errorCount ?? 0 : 0),
-      };
-      resultCache.set(cacheKey, { value: result, expiresAt: Date.now() + RESULT_CACHE_TTL_MS });
+      const result = { logs: rows.map(row => ({ ...row.payload, ...row, payload: undefined })),
+        totalCount: counts[0]?.totalCount ?? 0, errorCount: counts[0]?.errorCount ?? 0 };
+      resultCache.set(key, { value: result, expiresAt: Date.now() + RESULT_CACHE_TTL_MS });
       return result;
-    } catch (error) {
-      console.error('ClickHouse log query failed', error);
-      throw new ServiceUnavailableException('Log search is temporarily unavailable');
-    }
+    } catch { throw new ServiceUnavailableException('Log search is temporarily unavailable'); }
   }
-
-  async getDashboardLogs(userId: string): Promise<LogsQueryResult> {
-    return this.getLogs(userId, { range: '24h', limit: 5_000 });
-  }
-
-  async startSse(response: Response, userId: string, queryObj: Record<string, unknown> = {}): Promise<void> {
-    const parsed = this.parseFilters({ ...queryObj, limit: queryObj.limit ?? 500 });
-    const filters: SseFilters = {
-      userId,
-      type: parsed.type,
-      env: parsed.env,
-      appName: parsed.appName,
-      search: parsed.search,
-    };
-
+  async startSse(response: Response, userId: string, query: Record<string, unknown> = {}) {
+    const parsed = this.parseFilters({ ...query, limit: query.limit ?? 500 });
     response.status(200);
     response.setHeader('Content-Type', 'text/event-stream');
     response.setHeader('Cache-Control', 'no-cache, no-transform');
-    response.setHeader('Connection', 'keep-alive');
+    response.setHeader('X-Accel-Buffering', 'no');
     response.flushHeaders();
-
-    const cleanup = addClient(response, filters);
-    const keepAlive = setInterval(() => {
-      if (!response.writableEnded && !response.destroyed) response.write(': keep-alive\n\n');
-    }, 25_000);
-    response.once('close', () => {
-      clearInterval(keepAlive);
-      cleanup();
-    });
-
+    // Register before the initial query to avoid missing concurrent inserts.
+    const cleanup = addClient(response, { userId, type: parsed.type, env: parsed.env, appName: parsed.appName, search: parsed.search });
+    const heartbeat = setInterval(() => { if (!response.destroyed) response.write(': heartbeat\n\n'); }, 20_000);
+    const expiry = setTimeout(() => response.end(), 240_000);
+    response.once('close', () => { clearInterval(heartbeat); clearTimeout(expiry); cleanup(); });
     try {
-      const initial = await this.getLogs(userId, { ...queryObj, limit: parsed.limit });
-      if (!response.writableEnded && !response.destroyed) {
-        response.write(`data: ${JSON.stringify({ type: 'initial', logs: initial.logs })}\n\n`);
-      }
-    } catch (error) {
-      clearInterval(keepAlive);
-      cleanup();
-      response.end(`event: error\ndata: ${JSON.stringify({ message: (error as Error).message })}\n\n`);
-    }
+      const initial = await this.getLogs(userId, { ...query, limit: parsed.limit });
+      if (!response.destroyed) response.write('data: ' + JSON.stringify({ type: 'initial', logs: initial.logs }) + '\n\n');
+    } catch { response.end('event: error\ndata: {"message":"Log search unavailable"}\n\n'); }
   }
-
-  async streamMetricsSse(response: Response): Promise<void> {
+  async streamMetricsSse(response: Response, userId: string) {
     response.status(200);
     response.setHeader('Content-Type', 'text/event-stream');
     response.setHeader('Cache-Control', 'no-cache, no-transform');
-    response.setHeader('Connection', 'keep-alive');
     response.flushHeaders();
-
-    const writeMetrics = async () => {
-      const [rate, backlog, latencies] = await Promise.all([
-        this.redis.get(REDIS_KEYS.ingestRate),
-        this.redis.get(REDIS_KEYS.ingestBacklog),
-        this.redis.lrange(REDIS_KEYS.ingestLatency, 0, 59),
-      ]);
-      const values = latencies.map(Number).filter(Number.isFinite);
-      const avgLatency = values.length > 0
-        ? values.reduce((total, value) => total + value, 0) / values.length
-        : 0;
-      response.write(`data: ${JSON.stringify({ ingestRate: Number(rate ?? 0), avgLatency, backlog: Number(backlog ?? 0) })}\n\n`);
-    };
-
-    let writing = false;
-    const interval = setInterval(() => {
-      if (writing || response.writableEnded || response.destroyed) return;
-      writing = true;
-      void writeMetrics()
-        .catch((error) => console.warn('Unable to stream live metrics', error))
-        .finally(() => { writing = false; });
-    }, 1_000);
-
-    response.once('close', () => clearInterval(interval));
-    await writeMetrics();
+    const write = () => response.write('data: ' + JSON.stringify({ ...getTelemetry(userId), backlog: getBacklog() }) + '\n\n');
+    write();
+    const interval = setInterval(write, 5_000);
+    const expiry = setTimeout(() => response.end(), 240_000);
+    response.once('close', () => { clearInterval(interval); clearTimeout(expiry); });
   }
-
   private parseFilters(queryObj: Record<string, unknown>): ParsedFilters {
     const values: Record<string, unknown> = { ...queryObj };
     const dsl = queryObj.query ?? queryObj.q;

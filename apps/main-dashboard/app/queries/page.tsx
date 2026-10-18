@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { getLogs } from "@oneminutelogs/next";
+import { getLogs } from "@tracebloom/next";
 import { Clock3, Loader2, Play, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -4,7 +4,7 @@ import { makePageMetadata } from "@/lib/seo"
 
 export const metadata = makePageMetadata({
   title: "Terms of Service",
-  description: "The rules that govern your use of OneMinute Logs.",
+  description: "The rules that govern your use of Tracebloom.",
   path: "/terms",
 });
 
@@ -20,7 +20,7 @@ const Page = () => {
               Terms of Service
             </h1>
             <p className="text-white/60! pb-2">
-              These terms govern your use of OneMinute Logs. Please read them
+              These terms govern your use of Tracebloom. Please read them
               carefully.
             </p>
           </header>
@@ -76,19 +76,17 @@ const Page = () => {
 
             <div className="px-6 pb-4">
               <h2 className="text-lg font-semibold text-white">
-                Plans, Billing & Taxes
+                Free Usage Limits
               </h2>
               <ul className="list-disc pl-5 text-sm text-white/70 space-y-2">
                 <li>
-                  Fees, quotas, and retention vary by plan, as shown on the
-                  pricing page.
+                  The service is free, with daily ingestion limits and seven-day retention.
                 </li>
                 <li>
-                  Paid plans are billed in advance unless stated otherwise.
+                  Shared platform limits may temporarily pause ingestion.
                 </li>
                 <li>
-                  You are responsible for applicable taxes and payment method
-                  charges.
+                  The service can sleep during inactivity and is intended for portfolio and hobby use.
                 </li>
               </ul>
             </div>
@@ -147,7 +145,7 @@ const Page = () => {
                 Governing Law & Jurisdiction
               </h2>
               <p className="text-sm text-white/70!">
-                These Terms and your use of OneMinute Logs are governed by the laws of the United States of America.
+                These Terms and your use of Tracebloom are governed by the laws of the United States of America.
                 Where relevant, applicable state laws may also apply. You agree that any dispute arising out of or
                 relating to the service will be resolved in competent courts within the United States, and you consent
                 to personal jurisdiction and venue in those courts.

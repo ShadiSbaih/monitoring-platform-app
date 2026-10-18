@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { DashboardGuard } from '../../guards/dashboard.guard';
 import { AuthGuard } from '../../guards/auth.guard';
 import { ApiKeyService } from './api-key.service';
 
@@ -16,7 +17,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 @Controller('api-keys')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, DashboardGuard)
 export class ApiKeyController {
   constructor(private readonly apiKeyService: ApiKeyService) {}
 

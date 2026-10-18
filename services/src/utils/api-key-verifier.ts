@@ -1,11 +1,5 @@
 export function extractKeyId(plainKey: string): string | null {
-  if (!plainKey.startsWith('oml_')) return null;
-
-  const parts = plainKey.split('_');
-  if (parts.length !== 3) return null;
-
-  const keyId = parts[1];
-  if (!/^[0-9a-f]{32}$/i.test(keyId)) return null;
-
-  return keyId.toLowerCase();
+  // Base64url secrets can contain underscores; only the prefix separates the ID.
+  const match = /^oml_([0-9a-f]{32})_[A-Za-z0-9_-]{43}$/i.exec(plainKey);
+  return match?.[1].toLowerCase() ?? null;
 }

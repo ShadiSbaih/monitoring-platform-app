@@ -6,7 +6,7 @@ import * as schema from './schema';
 
 neonConfig.webSocketConstructor = ws;
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 5, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 15_000 });
 pool.on('error', (error: Error) => {
   console.error('Neon PostgreSQL pool error', error);
 });

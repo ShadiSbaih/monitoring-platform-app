@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { fetchCurrentPlan } from "@/lib/billing-api";
+
 import { createAlert, deleteAlert, fetchAlerts, type AlertCondition, type AlertRule } from "@/lib/alerts-api";
 
 const conditionFields: Array<{ value: AlertCondition["field"]; label: string }> = [
@@ -40,7 +40,7 @@ function newForm() {
 function conditionText(condition: AlertCondition): string {
   const field = conditionFields.find((item) => item.value === condition.field)?.label ?? condition.field;
   const operator = condition.operator === "equals" ? "is" : "is not";
-  return `${field} ${operator} ${condition.value || "…"}`;
+  return `${field} ${operator} ${condition.value || "â€¦"}`;
 }
 
 function summaryFor(form: ReturnType<typeof newForm>): string {
@@ -56,13 +56,13 @@ function relativeTime(value: string | null): string {
 
 function ruleCondition(rule: AlertRule): string {
   const conditionTextValue = rule.conditions.map(conditionText).join(" and ");
-  return `${rule.threshold_count} matching logs in ${rule.threshold_window_minutes}m${conditionTextValue ? ` · ${conditionTextValue}` : ""}`;
+  return `${rule.threshold_count} matching logs in ${rule.threshold_window_minutes}m${conditionTextValue ? ` Â· ${conditionTextValue}` : ""}`;
 }
 
 export default function AlertsPage() {
   const queryClient = useQueryClient();
   const alertQuery = useQuery({ queryKey: ["alerts"], queryFn: fetchAlerts });
-  const planQuery = useQuery({ queryKey: ["current-plan"], queryFn: fetchCurrentPlan });
+
   const [newAlertOpen, setNewAlertOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(newForm);
@@ -103,10 +103,7 @@ export default function AlertsPage() {
   });
 
   function openBuilder() {
-    if (planQuery.data?.plan === "free" || !planQuery.data) {
-      toast.error("Please upgrade your plan for creating alert");
-      return;
-    }
+    if (activeAlerts.length >= 3) { toast.error("You can have up to 3 active alerts"); return; }
     setFormError("");
     setNewAlertOpen(true);
   }
@@ -189,7 +186,7 @@ export default function AlertsPage() {
             <table className="w-full min-w-[820px] text-left text-sm">
               <thead className="border-y bg-muted/30 text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Name</th><th className="px-4 py-3 font-medium">Application</th><th className="px-4 py-3 font-medium">Threshold</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Last Triggered</th><th className="px-4 py-3 text-right font-medium">Action</th></tr></thead>
               <tbody className="divide-y">
-                {alertQuery.isLoading ? <tr><td colSpan={6} className="px-4 py-14 text-center text-muted-foreground">Loading alert rules…</td></tr> : visibleAlerts.length ? visibleAlerts.map((alert) => (
+                {alertQuery.isLoading ? <tr><td colSpan={6} className="px-4 py-14 text-center text-muted-foreground">Loading alert rulesâ€¦</td></tr> : visibleAlerts.length ? visibleAlerts.map((alert) => (
                   <tr key={alert.id} className="hover:bg-muted/20">
                     <td className="px-4 py-3"><p className="font-medium">{alert.name}</p><p className="mt-1 max-w-xs truncate text-xs text-muted-foreground">{alert.summary}</p></td>
                     <td className="px-4 py-3">{alert.app_name}</td>
@@ -209,7 +206,7 @@ export default function AlertsPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Create an alert rule</DialogTitle>
-            <DialogDescription>Step {step} of 4 · {(["Name", "Rule", "Webhook", "Cooldown"] as const)[step - 1]}</DialogDescription>
+            <DialogDescription>Step {step} of 4 Â· {(["Name", "Rule", "Webhook", "Cooldown"] as const)[step - 1]}</DialogDescription>
           </DialogHeader>
           <div className="mb-2 flex gap-2" aria-label="Alert builder progress">
             {[1, 2, 3, 4].map((number) => <span key={number} className={`h-1.5 flex-1 rounded-full ${number <= step ? "bg-primary" : "bg-muted"}`} />)}
@@ -218,7 +215,7 @@ export default function AlertsPage() {
             {step === 1 && <div className="space-y-2"><label htmlFor="alert-name" className="text-sm font-medium">Alert name</label><Input id="alert-name" autoFocus placeholder="Critical API errors" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} /></div>}
 
             {step === 2 && <div className="space-y-5">
-              <div className="space-y-2"><label htmlFor="alert-app" className="text-sm font-medium">Application name</label><Input id="alert-app" placeholder="oneminutelogs" value={form.app_name} onChange={(event) => setForm((current) => ({ ...current, app_name: event.target.value }))} /></div>
+              <div className="space-y-2"><label htmlFor="alert-app" className="text-sm font-medium">Application name</label><Input id="alert-app" placeholder="tracebloom" value={form.app_name} onChange={(event) => setForm((current) => ({ ...current, app_name: event.target.value }))} /></div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between"><h3 className="text-sm font-medium">Conditions</h3><Button type="button" variant="outline" size="sm" onClick={() => setForm((current) => ({ ...current, conditions: [...current.conditions, { ...emptyCondition }] }))}><Plus className="mr-1 size-3.5" /> Add condition</Button></div>
                 {form.conditions.map((condition, index) => <div key={index} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_1.2fr_32px]">
@@ -234,9 +231,9 @@ export default function AlertsPage() {
               <div className="rounded-lg border bg-muted/30 p-3"><p className="mb-1 text-xs font-medium uppercase text-muted-foreground">Rule summary</p><p className="text-sm">{summaryFor(form)}</p></div>
             </div>}
 
-            {step === 3 && <div className="space-y-2"><label htmlFor="webhook-url" className="text-sm font-medium">Webhook URL</label><Input id="webhook-url" type="url" placeholder="https://example.com/hooks/oneminutelogs" value={form.webhook_url} onChange={(event) => setForm((current) => ({ ...current, webhook_url: event.target.value }))} /><p className="text-xs text-muted-foreground">Requests include an HMAC-SHA256 signature and a 60-second timestamp.</p></div>}
+            {step === 3 && <div className="space-y-2"><label htmlFor="webhook-url" className="text-sm font-medium">Webhook URL</label><Input id="webhook-url" type="url" placeholder="https://example.com/hooks/tracebloom" value={form.webhook_url} onChange={(event) => setForm((current) => ({ ...current, webhook_url: event.target.value }))} /><p className="text-xs text-muted-foreground">Requests include an HMAC-SHA256 signature and a 60-second timestamp.</p></div>}
 
-            {step === 4 && <div className="space-y-5"><div className="space-y-2"><label htmlFor="cooldown" className="text-sm font-medium">Cooldown period</label><select id="cooldown" value={form.cooldown_period} onChange={(event) => setForm((current) => ({ ...current, cooldown_period: event.target.value }))} className="h-9 w-full rounded-md border bg-background px-3 text-sm">{cooldownOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select><p className="text-xs text-muted-foreground">We’ll wait this long after a trigger before sending the next notification.</p></div><div className="rounded-lg border p-4"><p className="mb-2 text-xs font-medium uppercase text-muted-foreground">Final rule</p><p className="text-sm">{summaryFor(form)}</p><p className="mt-3 text-xs text-muted-foreground">Send to {form.webhook_url || "your webhook URL"} · cooldown {form.cooldown_period}</p></div></div>}
+            {step === 4 && <div className="space-y-5"><div className="space-y-2"><label htmlFor="cooldown" className="text-sm font-medium">Cooldown period</label><select id="cooldown" value={form.cooldown_period} onChange={(event) => setForm((current) => ({ ...current, cooldown_period: event.target.value }))} className="h-9 w-full rounded-md border bg-background px-3 text-sm">{cooldownOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select><p className="text-xs text-muted-foreground">Weâ€™ll wait this long after a trigger before sending the next notification.</p></div><div className="rounded-lg border p-4"><p className="mb-2 text-xs font-medium uppercase text-muted-foreground">Final rule</p><p className="text-sm">{summaryFor(form)}</p><p className="mt-3 text-xs text-muted-foreground">Send to {form.webhook_url || "your webhook URL"} Â· cooldown {form.cooldown_period}</p></div></div>}
 
             {formError && <p role="alert" className="rounded-md border border-destructive/30 p-2 text-sm text-destructive">{formError}</p>}
             <DialogFooter className="gap-2 sm:justify-between">

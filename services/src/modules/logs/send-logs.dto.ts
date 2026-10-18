@@ -1,8 +1,6 @@
-import { ArrayNotEmpty, IsArray, IsObject } from 'class-validator';
-
+import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsObject, IsOptional, IsUUID } from 'class-validator';
 export class SendLogsDto {
-  @IsArray()
-  @ArrayNotEmpty()
-  @IsObject({ each: true })
+  @IsArray() @ArrayNotEmpty() @ArrayMaxSize(100) @IsObject({ each: true })
   logs!: Record<string, unknown>[];
+  @IsOptional() @IsUUID() batchId?: string;
 }

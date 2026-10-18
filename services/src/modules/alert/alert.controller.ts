@@ -1,50 +1,14 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import type { Request } from 'express';
-import { PlanTier } from '../../configs';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { DashboardGuard } from '../../guards/dashboard.guard';
 import { AuthGuard } from '../../guards/auth.guard';
-import { UsageGuard } from '../../guards/usage.guard';
 import { AlertService } from './alert.service';
 import { CreateAlertDto, VerifyWebhookDto } from './alert.dto';
-
-interface AlertRequest extends Request {
-  user: { id: string };
-  plan?: PlanTier;
-}
-
 @Controller('alerts')
+@UseGuards(AuthGuard)
 export class AlertController {
-  constructor(private readonly alertService: AlertService) {}
-
-  @Get()
-  @UseGuards(AuthGuard)
-  listAlerts(@Req() request: AlertRequest) {
-    return this.alertService.listAlerts(request.user.id);
-  }
-
-  @Post()
-  @UseGuards(AuthGuard, UsageGuard)
-  createAlert(@Req() request: AlertRequest, @Body() body: CreateAlertDto) {
-    return this.alertService.createAlert(request.user.id, request.plan, body);
-  }
-
-  @Delete(':id')
-  @UseGuards(AuthGuard)
-  deleteAlert(@Req() request: AlertRequest, @Param('id') alertId: string) {
-    return this.alertService.deleteAlert(request.user.id, alertId);
-  }
-
-  @Post('verify-webhook')
-  @UseGuards(AuthGuard, UsageGuard)
-  verifyWebhook(@Req() request: AlertRequest, @Body() body: VerifyWebhookDto) {
-    return this.alertService.verifyWebhook(request.plan, body);
-  }
+  constructor(private readonly alerts: AlertService) {}
+  @Get() @UseGuards(DashboardGuard) list(@Req() req: { user: { id: string } }) { return this.alerts.listAlerts(req.user.id); }
+  @Post() @UseGuards(DashboardGuard) create(@Req() req: { user: { id: string } }, @Body() body: CreateAlertDto) { return this.alerts.createAlert(req.user.id, body); }
+  @Delete(':id') @UseGuards(DashboardGuard) delete(@Req() req: { user: { id: string } }, @Param('id', ParseUUIDPipe) id: string) { return this.alerts.deleteAlert(req.user.id, id); }
+  @Post('verify-webhook') verify(@Req() req: { user: { id: string } }, @Body() body: VerifyWebhookDto) { return this.alerts.verifyWebhook(req.user.id, body); }
 }

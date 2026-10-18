@@ -7,8 +7,8 @@ import {
 import { randomBytes, randomUUID } from 'node:crypto';
 import argon2 from 'argon2';
 import { LRUCache } from 'lru-cache';
-import Redis from 'ioredis';
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { RedisClient } from '../../infra/redis.module';
+import { and, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import {
   DRIZZLE_DB,
   LRU_CACHE,
@@ -19,7 +19,7 @@ import {
 import type { DrizzleDatabase } from '../../database/client';
 import { apiKey } from '../../database/schema';
 
-const MAX_API_KEYS_PER_USER = 5;
+const MAX_API_KEYS_PER_USER = 3;
 
 function normalizeKeyId(keyId: string): string {
   const normalized = keyId.replace(/-/g, '').toLowerCase();
@@ -31,22 +31,11 @@ function normalizeKeyId(keyId: string): string {
 export class ApiKeyService {
   constructor(
     @Inject(DRIZZLE_DB) private readonly db: DrizzleDatabase,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    @Inject(REDIS_CLIENT) private readonly redis: RedisClient,
     @Inject(LRU_CACHE) private readonly localCache: LRUCache<string, object>,
   ) {}
 
   async createApiKey(userId: string): Promise<{ key: string }> {
-    const [result] = await this.db
-      .select({ total: count() })
-      .from(apiKey)
-      .where(eq(apiKey.user_id, userId));
-
-    if ((result?.total ?? 0) >= MAX_API_KEYS_PER_USER) {
-      throw new BadRequestException(
-        'You have reached the maximum limit of 5 API keys. Please contact support for more.',
-      );
-    }
-
     const keyId = randomUUID().replace(/-/g, '');
     const plainTextKey = `oml_${keyId}_${randomBytes(32).toString('base64url')}`;
     const hashedValue = await argon2.hash(plainTextKey, {
@@ -56,11 +45,12 @@ export class ApiKeyService {
       parallelism: 1,
     });
 
-    await this.db.insert(apiKey).values({
-      id: keyId,
-      user_id: userId,
-      value: hashedValue,
-      prefix: `${plainTextKey.slice(0, 18)}...`,
+    await this.db.transaction(async tx => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
+      const [result] = await tx.select({ total: count() }).from(apiKey)
+        .where(and(eq(apiKey.user_id, userId), isNull(apiKey.revoked_at)));
+      if (result.total >= MAX_API_KEYS_PER_USER) throw new BadRequestException('You can have up to 3 active API keys');
+      await tx.insert(apiKey).values({ id: keyId, user_id: userId, value: hashedValue, prefix: plainTextKey.slice(0, 18) + '...' });
     });
 
     return { key: plainTextKey };

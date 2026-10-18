@@ -1,0 +1,5 @@
+{
+  "framework": "nextjs",
+  "installCommand": "npm ci && npm --prefix ../../sdks/tracebloom-next ci",
+  "buildCommand": "npm --prefix ../../sdks/tracebloom-next run build && npm run build"
+}

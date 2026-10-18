@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import localFont from "next/font/local";
-import { ClerkProvider } from "@clerk/nextjs";
+
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ui } from "@clerk/ui";
-import DashboardSidebar from "@/components/dashboard/SidebarNav";
-import { SidebarInset } from "@/components/ui/sidebar";
-import TopBar from "@/components/dashboard/TopBar";
+
+
+
+
 import { QueryProvider } from "@/providers/query-provider";
+import { AuthProvider } from "@/providers/auth-provider";
+import { AppShell } from "@/components/dashboard/AppShell";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -28,8 +30,8 @@ const satoshi = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "OneMinute Logs",
-  description: "Production-ready logs in under a minute.",
+  title: "Tracebloom",
+  description: "Free application logs, live search, and webhook alerts.",
 };
 
 export default function RootLayout({
@@ -38,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider ui={ui}>
+
       <html lang="en" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${satoshi.variable} antialiased`}
@@ -47,18 +49,11 @@ export default function RootLayout({
           <QueryProvider>
             <Toaster position="top-right" richColors />
             <TooltipProvider>
-              <DashboardSidebar>
-                <SidebarInset>
-                  <TopBar />
-                  <div className="py-4 pr-4">
-                    <div className="mx-auto max-w-7xl">{children}</div>
-                  </div>
-                </SidebarInset>
-              </DashboardSidebar>
+              <AuthProvider><AppShell>{children}</AppShell></AuthProvider>
             </TooltipProvider>
           </QueryProvider>
         </body>
       </html>
-    </ClerkProvider>
+
   );
 }

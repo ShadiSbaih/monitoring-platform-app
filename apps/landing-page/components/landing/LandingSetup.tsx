@@ -14,11 +14,13 @@ const steps = [
   {
     id: 1,
     title: "Install the package",
-    description: "Add the SDK to your app with your favorite package manager.",
+    description: "Build the SDK from this repository and install the local package.",
     icon: Package,
-    code: `npm install @oneminutelogs/next
-# or
-npm install @oneminutelogs/express`,
+    code: `# From the Tracebloom repository
+npm --prefix sdks/tracebloom-next ci
+npm --prefix sdks/tracebloom-next run build
+# In your application, install the built local package
+npm install /path/to/tracebloom/sdks/tracebloom-next`,
     language: "bash",
   },
   {
@@ -26,12 +28,13 @@ npm install @oneminutelogs/express`,
     title: "Initialize the logger",
     description: "Configure the logger with your API key.",
     icon: MousePointerClick,
-    code: `import { createLogger } from "@oneminutelogs/next";
+    code: `import { createLogger } from "@tracebloom/next";
 
 export const log = createLogger({
-  apiKey: process.env.ONE_MINUTE_LOGS_API_KEY!,
-  appName: process.env.ONE_MINUTE_LOGS_APP_NAME!,
-  environment: process.env.ONE_MINUTE_LOGS_ENVIRONMENT || "development",
+  apiKey: process.env.TRACEBLOOM_API_KEY!,
+  baseUrl: process.env.TRACEBLOOM_SERVER_URI!,
+  appName: "my-app",
+  environment: process.env.NODE_ENV || "development",
 });`,
     language: "typescript",
   },
@@ -41,33 +44,23 @@ export const log = createLogger({
     description: "Log events from anywhere in your app.",
     icon: Monitor,
     code: `
-// Log success
-await log.send("User logged in", { 
-  type:"success",
-  email: session?.user?.email 
+log.info("Application started");
+log.error("Background job failed", {
+  importance: "critical",
 });
-
-// Log info
-await log.info("User reseted password", { 
-  email: session?.user?.email 
-});
-
-// Log error
-await log.error("login failed", { 
-  email: session?.user?.email 
-});
+// Await before a short-lived request or job exits.
+await log.flush();
 `,
     language: "typescript",
   },
   {
     id: 4,
     title: "Done",
-    description: "That's it. No config, no servers, no YAML. Just clear logs.",
+    description: "Open Live Logs in your dashboard to see your events.",
     icon: Sparkles,
-    code: `// Visit oneminutelogs.com/dashboard/live-logs
-// You'll see your events streaming live!
-// Or brodcast live logs via our SDK inside your
-// application dashboard
+    code: `// Open your Tracebloom dashboard, then Live Logs.
+// Filter by application, environment, and log type.
+// Keep API keys in your server environment.
 `,
     language: "typescript",
   },

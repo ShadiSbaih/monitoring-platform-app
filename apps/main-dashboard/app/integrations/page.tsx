@@ -1,146 +1,41 @@
-import React from "react";
 import Link from "next/link";
-import Image from "next/image";
-import NextJs from "../../assets/frameworks/next-js.svg";
-import ExpressJs from "../../assets/frameworks/express-js.svg";
-import NestJs from "../../assets/frameworks/nest-js.png";
-import RemixJs from "../../assets/frameworks/remix-js.png";
-import Django from "../../assets/frameworks/django.svg";
-import Flask from "../../assets/frameworks/Flask.svg";
 
-const integrations = [
-  {
-    id: "nextjs",
-    name: "Next.js",
-    description: "React framework for production",
-    logo: NextJs,
-    docsUrl: "https://oneminutelogs.com/docs/nextjs",
-    available: true,
-  },
-  {
-    id: "express",
-    name: "Express.js",
-    description: "Fast, unopinionated web framework",
-    logo: ExpressJs,
-    docsUrl: "https://oneminutelogs.com/docs/express",
-    available: true,
-  },
-  {
-    id: "nestjs",
-    name: "NestJS",
-    description: "Progressive Node.js framework",
-    logo: NestJs,
-    docsUrl: "#",
-    available: false,
-  },
-  {
-    id: "remix",
-    name: "Remix",
-    description: "Full stack web framework",
-    logo: RemixJs,
-    docsUrl: "#",
-    available: false,
-  },
-  {
-    id: "django",
-    name: "Django",
-    description: "Python web framework",
-    logo: Django,
-    docsUrl: "#",
-    available: false,
-  },
-  {
-    id: "flask",
-    name: "Flask",
-    description: "Lightweight Python framework",
-    logo: Flask,
-    docsUrl: "#",
-    available: false,
-  },
-];
+const setup = `import { createLogger } from "@tracebloom/next";
 
-export default function Page() {
+// Server-side only: keep your API key out of browser bundles.
+const log = createLogger({
+  apiKey: process.env.TRACEBLOOM_API_KEY!,
+  baseUrl: process.env.TRACEBLOOM_SERVER_URI!, // API origin + /api/v1
+  appName: "my-app",
+  environment: process.env.NODE_ENV,
+});
+
+log.info("Application started");
+await log.flush(); // Await before a short-lived request or job exits.
+`;
+
+export default function IntegrationsPage() {
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Integrations</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Connect OneMinute Logs to your favorite frameworks
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Send server-side logs to Tracebloom with the TypeScript SDK or HTTP.</p>
       </div>
-
-      {/* Integration Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-        {integrations.map((integration) => {
-          if (integration.available) {
-            return (
-              <Link
-                key={integration.id}
-                href={integration.docsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group"
-              >
-                <div className="h-32 mb-2 rounded-lg border border-white/5 bg-white/4 px-5 py-4 transition-all duration-200 hover:border-[#00C2A8]/20 hover:bg-white/3 hover:shadow-md hover:shadow-[#00C2A8]/10">
-                  <div className="flex flex-col h-full">
-                    <div className="h-12 w-12 rounded-lg bg-white/90 border border-white/5 flex items-center justify-center p-2.5 mb-3">
-                      <Image
-                        src={integration.logo}
-                        alt={`${integration.name} logo`}
-                        width={48}
-                        height={48}
-                        className="object-contain"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-white mb-0.5">
-                        {integration.name}
-                      </h3>
-                      <p className="text-xs text-white/40 leading-tight">
-                        {integration.description}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            );
-          }
-
-          return (
-            <div key={integration.id} className="group cursor-not-allowed">
-              <div className="h-32 rounded-lg border border-white/5 bg-white/2 px-5 py-4 opacity-70">
-                <div className="flex flex-col h-full">
-                  <div
-                    className={`h-12 w-12 rounded-lg border border-white/5 ${
-                      integration.name === "Remix" ||
-                      integration.name === "Django"
-                        ? "bg-black/90"
-                        : "bg-white"
-                    } flex items-center justify-center p-2.5 mb-3`}
-                  >
-                    <Image
-                      src={integration.logo}
-                      alt={`${integration.name} logo`}
-                      width={55}
-                      height={55}
-                      className="object-contain"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-white mb-0.5">
-                      {integration.name}
-                    </h3>
-                    <p className="text-xs text-white/40 leading-tight">
-                      Coming soon
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <section className="space-y-4 rounded-xl border border-white/10 p-6">
+        <h2 className="text-lg font-semibold">TypeScript and Next.js</h2>
+        <p className="text-sm text-muted-foreground">The SDK is included in this repository at <code>sdks/tracebloom-next</code>. Build it and install the local package into your application. It has not been published to npm.</p>
+        <pre className="overflow-x-auto rounded-lg bg-black/30 p-4 text-xs"><code>{setup}</code></pre>
+        <p className="text-sm text-muted-foreground">Create an <Link href="/api-keys" className="text-teal-300 underline">API key</Link>, then set the API URL and secret in your server environment. Call <code>await log.close()</code> when a long-running process shuts down.</p>
+      </section>
+      <section className="space-y-4 rounded-xl border border-white/10 p-6">
+        <h2 className="text-lg font-semibold">Any language over HTTP</h2>
+        <p className="text-sm text-muted-foreground">POST to <code>/api/v1/logs/send</code> with your <code>x-api-key</code> header and the JSON below. Reuse the same batch ID and payload when retrying.</p>
+        <pre className="overflow-x-auto rounded-lg bg-black/30 p-4 text-xs"><code>{JSON.stringify({
+          batchId: "54bb0f96-e3e0-4fe1-8db6-dc4d00d580f4",
+          logs: [{ type: "info", app_name: "my-app", message: "Application started" }],
+        }, null, 2)}</code></pre>
+        <p className="text-sm text-muted-foreground">Each batch accepts up to 100 events, with 8 KiB per event and 256 KiB of log data per batch. Personal accounts receive 1,000 events per UTC day.</p>
+      </section>
     </div>
   );
 }

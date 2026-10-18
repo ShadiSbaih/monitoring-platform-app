@@ -39,7 +39,7 @@ export function LandingFeatures() {
             transition={{ duration: 0.6 }}
           >
             <div className="text-xs font-medium tracking-wide text-sky-400 uppercase mb-4">
-              Why OneMinute Logs exists
+              Why Tracebloom exists
             </div>
             <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-50 mb-6">
               Logging shouldn&apos;t feel like a whole other job.
@@ -58,7 +58,7 @@ export function LandingFeatures() {
                 small team — you don&apos;t want to spend days wiring logs. You
                 just want errors, requests, and latency in one place, instantly.
               </p>
-              <p>OneMinute Logs removes all the overhead.</p>
+              <p>Tracebloom removes all the overhead.</p>
               <p>
                 Drop in a small SDK, deploy, and your logs start streaming in
                 under a minute. No servers. No cluster tuning. No 40-page docs

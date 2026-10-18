@@ -23,7 +23,7 @@ export default function Logo({ className, textClassName }: { className?: string;
             </svg>
             <div className="flex flex-col justify-center">
                 <span className={cn("text-[26px] tracking-tighter text-slate-100 font-satoshi", textClassName)}>
-                    OneMinute Logs
+                    Tracebloom
                 </span>
             </div>
         </>

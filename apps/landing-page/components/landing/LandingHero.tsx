@@ -33,7 +33,7 @@ const LOG_SNIPPETS = [
   {
     time: "12:16:29",
     level: "INFO",
-    msg: "Payment webhook received",
+    msg: "Background job completed",
     color: "text-sky-400",
   },
   {
@@ -122,7 +122,7 @@ export function LandingHero() {
           </p>
 
           <div className="flex flex-wrap items-center gap-4 mb-10">
-            <Link href="/dashboard/overview">
+            <Link href="/sign-up">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -131,7 +131,7 @@ export function LandingHero() {
                 Get Started <ArrowRight className="h-4 w-4" />
               </motion.button>
             </Link>
-            <a href="#pricing">
+            <a href="#limits">
               <motion.button
                 whileHover={{
                   scale: 1.05,
@@ -140,7 +140,7 @@ export function LandingHero() {
                 whileTap={{ scale: 0.95 }}
                 className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-700 bg-slate-950/50 px-6 py-3 text-sm font-medium tracking-tight text-slate-100 hover:border-slate-500 transition-all"
               >
-                View Pricing
+                View free limits
               </motion.button>
             </a>
           </div>
@@ -177,7 +177,7 @@ export function LandingHero() {
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 <span className="text-xs font-medium tracking-tight text-slate-200">
-                  Live Production
+                  Interactive preview
                 </span>
               </div>
               <div className="flex items-center gap-2">

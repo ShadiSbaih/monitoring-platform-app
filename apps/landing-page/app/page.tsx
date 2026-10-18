@@ -2,12 +2,10 @@ import React from "react";
 import {
   LandingHeader,
   LandingHero,
-  LandingTrustedBy,
   LandingFeatures,
   LandingSetup,
-  LandingTestimonials,
   LandingWhySwitch,
-  LandingPricing,
+  LandingFreeLimits,
   LandingCTA,
   LandingFooter,
 } from "@/components/landing";
@@ -19,12 +17,10 @@ export default function LandingPage() {
 
       <main className="flex-1"> 
         <LandingHero />
-        <LandingTrustedBy />
         <LandingFeatures />
         <LandingSetup />
-        <LandingTestimonials />
         <LandingWhySwitch />
-        <LandingPricing />
+        <LandingFreeLimits />
         <LandingCTA />
       </main>
 

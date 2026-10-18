@@ -1,106 +1,34 @@
 import type { Metadata } from "next";
 
-export const siteUrl = "https://www.oneminutelogs.com";
-
-export const brand = "OneMinute Logs";
-export const defaultDescription = "Production-ready logs in under a minute.";
-
-const ogImage = `${siteUrl}/og.png`;
+const host = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (host ? `https://${host}` : "http://localhost:3000");
+export const brand = "Tracebloom";
+export const defaultDescription = "See your application logs take shape. Free live logs, search, and webhook alerts.";
 
 export const defaultMetadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: {
-    default: brand,
-    template: `%s | ${brand}`,
-  },
+  title: { default: brand, template: `%s | ${brand}` },
   applicationName: brand,
   description: defaultDescription,
-  alternates: {
-    canonical: siteUrl,
-  },
+  alternates: { canonical: "/" },
   openGraph: {
-    type: "website",
-    url: siteUrl,
-    title: brand,
-    siteName: brand,
-    description: defaultDescription,
-    images: [{ url: ogImage, width: 1200, height: 630, alt: brand }],
+    type: "website", url: siteUrl, title: brand, siteName: brand, description: defaultDescription,
   },
-  twitter: {
-    card: "summary_large_image",
-    title: brand,
-    description: defaultDescription,
-    images: [ogImage],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-snippet": -1,
-      "max-image-preview": "large",
-      "max-video-preview": -1,
-    },
-  },
-  icons: {
-    icon: "/favicon.ico",
-  },
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
-  ],
-  keywords: [
-    "log management",
-    "logging SaaS",
-    "nodejs logs",
-    "production logs",
-    "developer tools",
-    "clickhouse logs",
-    "observability",
-    "monitoring",
-  ],
+  twitter: { card: "summary", title: brand, description: defaultDescription },
+  robots: { index: true, follow: true },
+  icons: { icon: "/favicon.ico" },
+  keywords: ["log management", "application logs", "developer tools", "observability", "monitoring"],
 };
 
-type PageMetaInput = {
-  title: string;
-  description?: string;
-  path?: string;
-  images?: string[];
-};
-
-export const makePageMetadata = ({
-  title,
-  description = defaultDescription,
-  path = "/",
-  images = [ogImage],
-}: PageMetaInput): Metadata => {
+type PageMetaInput = { title: string; description?: string; path?: string };
+export function makePageMetadata({ title, description = defaultDescription, path = "/" }: PageMetaInput): Metadata {
   const canonical = new URL(path, siteUrl).toString();
-
   return {
-    title,
-    description,
-    alternates: { canonical },
-    openGraph: {
-      ...defaultMetadata.openGraph!,
-      title,
-      description,
-      url: canonical,
-      images: images.map((url) => ({ url })),
-    },
-    twitter: {
-      ...defaultMetadata.twitter!,
-      title,
-      description,
-      images,
-    },
+    title, description, alternates: { canonical },
+    openGraph: { ...defaultMetadata.openGraph, title, description, url: canonical },
+    twitter: { ...defaultMetadata.twitter, title, description },
   };
-};
-
+}
 export const organizationJsonLd = () => ({
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: brand,
-  url: siteUrl,
-  logo: `${siteUrl}/favicon.ico`,
+  "@context": "https://schema.org", "@type": "Organization", name: brand, url: siteUrl,
 });

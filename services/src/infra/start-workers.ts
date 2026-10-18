@@ -1,7 +1,9 @@
-import { startLogsConsumer } from './nats/consumer';
-import { startAlertConsumer } from './nats/alert-consumer';
-
-export async function startWorkers(): Promise<void> {
-  await startLogsConsumer();
-  await startAlertConsumer();
+import { STREAMS } from '../configs';
+import { ensureStreams, runConsumer } from './streams/queue';
+import { processIngest } from './streams/consumer';
+import { processAlerts } from './streams/alert-consumer';
+export async function startWorkers() {
+  await ensureStreams();
+  runConsumer(STREAMS.ingest, processIngest);
+  runConsumer(STREAMS.alerts, processAlerts);
 }

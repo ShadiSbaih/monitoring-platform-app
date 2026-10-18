@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/providers/auth-provider";
 import { Check, Copy, KeyRound, Loader2, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { format } from "timeago.js";
 import { useState } from "react";
@@ -40,22 +40,18 @@ type ApiKey = {
 
 type ApiKeyLastUsed = { last_used_at: string | null };
 
-const SERVER_URI = process.env.NEXT_PUBLIC_SERVER_URI ?? "http://localhost:8080/api/v1";
+const SERVER_URI = "/api/v1";
 
 async function apiRequest<T>(
-  getToken: () => Promise<string | null>,
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const token = await getToken();
-  if (!token) throw new Error("Your session has expired. Sign in again to manage API keys.");
 
   const response = await fetch(`${SERVER_URI}${path}`, {
     ...init,
     cache: "no-store",
     headers: {
       ...(init.body ? { "Content-Type": "application/json" } : {}),
-      Authorization: `Bearer ${token}`,
       ...init.headers,
     },
   });
@@ -76,7 +72,7 @@ function relativeTime(value: string | null | undefined, emptyLabel: string): str
 }
 
 export default function ApiKeysPage() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<ApiKey | null>(null);
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
@@ -87,17 +83,17 @@ export default function ApiKeysPage() {
   const keysQuery = useQuery({
     queryKey: ["api-keys"],
     enabled: isLoaded && Boolean(isSignedIn),
-    queryFn: () => apiRequest<ApiKey[]>(getToken, "/api-keys"),
+    queryFn: () => apiRequest<ApiKey[]>("/api-keys"),
   });
 
   const lastUsedQuery = useQuery({
     queryKey: ["api-keys", selected?.id, "last-used"],
     enabled: isLoaded && Boolean(isSignedIn) && Boolean(selected?.id),
-    queryFn: () => apiRequest<ApiKeyLastUsed>(getToken, `/api-keys/${selected!.id}`),
+    queryFn: () => apiRequest<ApiKeyLastUsed>(`/api-keys/${selected!.id}`),
   });
 
   const createKey = useMutation({
-    mutationFn: () => apiRequest<{ key: string }>(getToken, "/api-keys", { method: "POST" }),
+    mutationFn: () => apiRequest<{ key: string }>("/api-keys", { method: "POST" }),
     onSuccess: async ({ key }) => {
       setError(null);
       setGeneratedKey(key);
@@ -109,7 +105,7 @@ export default function ApiKeysPage() {
 
   const revokeKey = useMutation({
     mutationFn: (keyId: string) =>
-      apiRequest<{ revoked: true }>(getToken, `/api-keys/${keyId}`, { method: "DELETE" }),
+      apiRequest<{ revoked: true }>(`/api-keys/${keyId}`, { method: "DELETE" }),
     onSuccess: async () => {
       setError(null);
       setSelected(null);
@@ -139,7 +135,7 @@ export default function ApiKeysPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">API Keys</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Create and revoke credentials for sending logs to OneMinute Logs.
+            Create and revoke credentials for sending logs to Tracebloom.
           </p>
         </div>
         <Button
@@ -246,7 +242,7 @@ export default function ApiKeysPage() {
               </div>
               <dl className="space-y-4 text-sm">
                 <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Created</dt><dd>{relativeTime(selected.created_at, "Unknown")}</dd></div>
-                <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Last used</dt><dd>{lastUsedQuery.isPending ? "Loading…" : relativeTime(selectedLastUsed, "No uses yet")}</dd></div>
+                <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Last used</dt><dd>{lastUsedQuery.isPending ? "Loadingâ€¦" : relativeTime(selectedLastUsed, "No uses yet")}</dd></div>
                 <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Status</dt><dd>{selected.revoked_at ? "Revoked" : "Active"}</dd></div>
               </dl>
               {selected.revoked_at === null && (

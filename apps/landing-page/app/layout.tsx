@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
+import { LegacyAuthCleanup } from "@/components/auth/legacy-auth-cleanup";
+import { defaultMetadata } from "@/lib/seo";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import localFont from "next/font/local";
-import { ClerkProvider } from "@clerk/nextjs";
-import { ui } from "@clerk/ui";
-import { DemoAuthProvider } from "@/components/auth/demo-auth-provider";
-import { clerkConfigured } from "@/lib/clerk-config";
+
+
+
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,10 +24,7 @@ const satoshi = localFont({
   weight: "700",
 });
 
-export const metadata: Metadata = {
-  title: "OneMinute Logs",
-  description: "Production-ready logs in under a minute.",
-};
+export const metadata = defaultMetadata;
 
 export default function RootLayout({
   children,
@@ -39,11 +37,8 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${satoshi.variable} antialiased`}
         suppressHydrationWarning
       >
-        {clerkConfigured ? (
-          <ClerkProvider ui={ui}>{children}</ClerkProvider>
-        ) : (
-          <DemoAuthProvider>{children}</DemoAuthProvider>
-        )}
+        <LegacyAuthCleanup />
+        {children}
       </body>
     </html>
   );
